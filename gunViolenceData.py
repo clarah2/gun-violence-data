@@ -3,7 +3,6 @@ import requests
 from bs4 import BeautifulSoup
 from collections import OrderedDict
 
-urlList = []
 
 # function to get list of incident links from each mass shooting page (http://www.gunviolencearchive.org/reports/mass-shooting)
 
@@ -12,19 +11,17 @@ def get_urls(url):
 	soup = BeautifulSoup(response.content, 'html.parser')
 	table = soup.find('table', class_="responsive sticky-enabled")
 	rows = table.select('tbody > tr')
-	
-	for row in rows:
-		urlList.append(row.find('a').attrs['href'])
-	
-	for x in range(0, len(urlList)):
-		urlList[x] = 'http://www.gunviolencearchive.org' + urlList[x]
+
+	urlList = ['http://www.gunviolencearchive.org' + row.find('a').attrs['href'] for row in rows]
+
+	return urlList
 	
 # function to get the information from each incident page (ex. http://www.gunviolencearchive.org/incident/604762) 
 # creates 3 csv files: basics, participants, and guns, preceded by unique ID number. One of each for each incident
 # also prints the notes and incident characteristics
 
-def get_info(url):
-	if "http://www.gunviolencearchive.org/incident/" in url:
+def scrape_urls(url):
+	if url.startswith("http://www.gunviolencearchive.org/incident/"):
 		iD = url.split("http://www.gunviolencearchive.org/incident/")
 		incidentString = iD[1]
 		incidentNumber = int(incidentString)
@@ -39,14 +36,14 @@ def get_info(url):
 
 		if "Location" in h.text:
 
-			info = h.findNextSibling('h3')
+			locationInfo = h.findNextSibling('h3')
 			location = []
-			basicInfo['Date'] = info.text
-			while info != None:
-				info = info.findNextSibling('span')
-				if info == None:
+			basicInfo['Date'] = locationInfo.text
+			while locationInfo is not None:
+				locationInfo = locationInfo.findNextSibling('span')
+				if locationInfo is None:
 					break
-				location.append(info.text)
+				location.append(locationInfo.text)
 			locationLength = len(location)
 
 			# some incidents just provide street address (length is 3), others also have a place name which means there is one more 'span' element (length is 4)
@@ -59,13 +56,14 @@ def get_info(url):
 				basicInfo['Geolocation'] = location[2].split("Geolocation: ")[1]
 				basicInfo['City, State'] = location[1]
 				basicInfo['Address'] = location[0]
-
-			continue
+			else: 	#if locationLength < 3 or > 4
+				print('Unexpected number of location items for incident ' + incidentString)
+				continue
 
 		elif "Participant" in h.text:
 			
 			csvName = incidentString + 'participants.csv'
-			participantCharacteristics = OrderedDict([('Incident', None), ('Type', None), ('Name', None), ('Age', None), ('Age Group', None), ('Gender', None), ('Status', None)])
+			participantCharacteristics = OrderedDict([('Incident', None), ('Type', None), ('Relationship', None), ('Name', None), ('Age', None), ('Age Group', None), ('Gender', None), ('Status', None)])
 			partDiv = h.findNextSibling('div')
 			uls = partDiv.findChildren('ul')
 			participantList = []
@@ -76,20 +74,14 @@ def get_info(url):
 				for li in ul:
 					data = str(li)		#change each li entry to string
 					fact = data[4:-5]	#remove <li> and </li> from beginning and end
+					
+					#for each fact, split at colon and create key value pair to add to participant dictionary
+					if len(fact) > 0: #to account for li of empty string
 
-					#for each fact, remove field name and add to participant dictionary
-					if "Type:" in fact:
-						participant['Type'] = fact.split("Type: ")[1]
-					elif "Name:" in fact:
-						participant['Name'] = fact.split("Name: ")[1]
-					elif "Age:" in fact:
-						participant['Age'] = fact.split("Age: ")[1]
-					elif "Age Group:" in fact:
-						participant['Age Group'] = fact.split("Age Group: ")[1]
-					elif "Gender:" in fact:
-						participant['Gender'] = fact.split("Gender: ")[1]
-					elif "Status:" in fact:
-						participant['Status'] = fact.split("Status: ")[1]
+						splitFact = fact.split(": ")
+						key, value = splitFact[0], splitFact[1]
+						participant[key] = value
+
 				participantList.append(participant)
 
 			#write participant headers and data to csv
@@ -99,36 +91,30 @@ def get_info(url):
 				for participant in participantList:
 					participantHeaders.writerow(participant)
 
-			continue
-
 		elif "Incident Characteristics" in h.text:
 
-			info = h.findNextSibling('ul')
-			li = info.findChildren('li')
-			incidentCharacteristics = []
-			for child in li:
-				incidentCharacteristics.append(child.text)
+			ICinfo = h.findNextSibling('ul')
+			li = ICinfo.findChildren('li')
+			incidentCharacteristics = [child.text for child in li]
 			#print(incidentCharacteristics)
 
 			continue
 
 		elif "Notes" in h.text:
 
-			info = h.findNextSibling('p').text
-			#print(info)
-
+			#print(h.findNextSibling('p').text)
 			continue
 
 		elif "Guns Involved" in h.text:
 
 			csvName = incidentString + 'guns.csv'
 			gunCharacteristics = OrderedDict([('Incident', None), ('Type', None), ('Stolen', None)])
-			info = h.findNextSibling('ul')
+			gunInfo = h.findNextSibling('ul')
 			gunList = []
 
 			for guns in h:
-				while info != None:
-					gunFacts = info.findChildren('li', recursive = False)
+				while gunInfo is not None:
+					gunFacts = gunInfo.findChildren('li', recursive = False)
 					gun = {'Incident' : incidentNumber}
 					for child in gunFacts:
 						if "Type:" in child.text:
@@ -136,7 +122,7 @@ def get_info(url):
 						elif "Stolen:" in child.text:
 							gun['Stolen'] = child.text.split("Stolen: ")[1]
 					gunList.append(gun)
-					info = info.findNextSibling('ul')
+					gunInfo = gunInfo.findNextSibling('ul')
 
 			with open(csvName, 'w') as csvFile:
 				gunHeaders = csv.DictWriter(csvFile, fieldnames = gunCharacteristics)
@@ -144,16 +130,16 @@ def get_info(url):
 				for myGun in gunList:
 					gunHeaders.writerow(myGun)
 
-			continue
-
 		elif "District" in h.text:
 			districtText = h.parent.text
 			districtText = districtText.splitlines()
-			basicInfo['Congressional District'] = districtText[2].split("Congressional District: ")[1]
-			basicInfo['State Senate District'] = districtText[3].split("State Senate District: ")[1]
-			basicInfo['State House District'] = districtText[4].split("State House District: ")[1]
 			
-			continue
+			for item in districtText:
+				districtFact = item.split(": ")
+				if len(districtFact) == 2:
+					key, value = districtFact[0], districtFact[1]
+					basicInfo[key] = value
+			
 
 	basics = OrderedDict([('Incident', None), ('Date', None), ('Place Name', None), ('Address', None), ('City, State', None), ('Geolocation', None), ('Congressional District', None), ('State Senate District', None), ('State House District', None)])
 	
@@ -165,13 +151,14 @@ def get_info(url):
 
 if __name__=="__main__":
 	
-	#url = "http://www.gunviolencearchive.org/incident/1206828"
-	#get_info(url)
+	# sample URL for scrape_urls function
+	#url = "http://www.gunviolencearchive.org/incident/604762"
+	#scrape_urls(url)
 
 	# for all links from one page of mass shootings
-	get_urls("http://www.gunviolencearchive.org/reports/mass-shooting")
-	for URL in urlList:
-		get_info(URL)
+	links = get_urls("http://www.gunviolencearchive.org/reports/mass-shooting")
+	for URL in links:
+		scrape_urls(URL)
 
 
 
