@@ -30,7 +30,7 @@ def write_to_csv(category, data, fields):
 #function creates five csv files: Basics, Participants, IncidentCharacteristics, Notes, Guns to fill with data
 
 def create_csv():
-	basics = OrderedDict([('Incident', None), ('Date', None), ('Place Name', None), ('Address', None), ('City', None), ('State', None), ('Latitude', None), ('Longitude', None), ('Congressional District', None), ('State Senate District', None), ('State House District', None)])
+	basics = OrderedDict([('Incident', None), ('Date', None), ('Place Name', None), ('Address', None), ('City', None), ('State', None), ('Latitude', None), ('Longitude', None), ('Congressional District', None), ('State Senate District', None), ('State House District', None), ('Participant Count', None), ('Victim Count', None), ('Subject Count', None), ('Gun Count', None)])
 	participantCharacteristics = OrderedDict([('Incident', None), ('Type', None), ('Relationship', None), ('Name', None), ('Age', None), ('Age Group', None), ('Gender', None), ('Status', None)])
 	iC = OrderedDict([('Incident', None), ('Incident Characteristic', None)])
 	notes = OrderedDict([('Incident', None), ('Notes', None)])
@@ -78,7 +78,7 @@ def scrape_urls(url):
 	soup = BeautifulSoup(response.content, 'html.parser')
 	headers = soup.find_all('h2')
 
-	basicInfo = [{'Incident' : incidentNumber, 'Date': None, 'Place Name': None, 'Address': None, 'City': None, 'State': None, 'Latitude': None, 'Longitude': None, 'Congressional District': None, 'State Senate District': None, 'State House District': None}]
+	basicInfo = [{'Incident' : incidentNumber, 'Date': None, 'Place Name': None, 'Address': None, 'City': None, 'State': None, 'Latitude': None, 'Longitude': None, 'Congressional District': None, 'State Senate District': None, 'State House District': None, 'Participant Count': None, 'Victim Count': None, 'Subject Count': None, 'Gun Count': None}]
 	basicsHeaders = [x for x in basicInfo[0].keys()] #create list of headers
 
 	#going through all headers in link to find information
@@ -121,6 +121,9 @@ def scrape_urls(url):
 			partDiv = h.findNextSibling('div')
 			uls = partDiv.findChildren('ul')
 			participantList = []
+			victimCount = 0
+			subjectCount = 0
+			participantCount = 0
 
 			# creates a dictionary for each participant with all of their info and adds it to participantList
 			for ul in uls:
@@ -135,8 +138,19 @@ def scrape_urls(url):
 						splitFact = fact.split(": ")
 						key, value = splitFact[0], splitFact[1]
 						participant[key] = value
-
+				
+				#counter variables for numbers of victims and subjects
+				if participant['Type'] == "Victim":
+					victimCount += 1
+				elif participant['Type'] == "Subject-Suspect":
+					subjectCount += 1
+				
 				participantList.append(participant)
+
+			participantCount = victimCount + subjectCount #counter variable for total number of participants
+			basicInfo[0]['Participant Count'] = participantCount
+			basicInfo[0]['Victim Count'] = victimCount
+			basicInfo[0]['Subject Count'] = subjectCount
 
 			participantsHeaders = [x for x in participantList[0].keys()] #create list of headers
 			write_to_csv('Participants', participantList, participantsHeaders) #add all dictionaries in participantList to Participants.csv
@@ -162,11 +176,13 @@ def scrape_urls(url):
 
 			gunInfo = h.findNextSibling('ul')
 			gunList = []
+			gunCount = 0
 
 			for guns in h:
 				while gunInfo is not None:
 					gunFacts = gunInfo.findChildren('li', recursive = False)
 					gun = {'Incident' : incidentNumber, 'Gun Type': None, 'Stolen': None}
+					gunCount += 1
 					for child in gunFacts:
 						if "Type:" in child.text:
 							gun['Gun Type'] = child.text.split("Type: ")[1]
@@ -174,10 +190,11 @@ def scrape_urls(url):
 							gun['Stolen'] = child.text.split("Stolen: ")[1]
 					gunList.append(gun)
 					gunInfo = gunInfo.findNextSibling('ul')
+
+			basicInfo[0]['Gun Count'] = gunCount
 			
 			gunsHeaders = [x for x in gunList[0].keys()] #create list of headers
 			write_to_csv('Guns', gunList, gunsHeaders) #add guns to Guns.csv
-
 
 		elif "District" in h.text:
 			districtText = h.parent.text
