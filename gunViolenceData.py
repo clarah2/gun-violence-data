@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 
 
-# function to get list of incident links from each mass shooting page (http://www.gunviolencearchive.org/reports/mass-shooting)
+# function to get list of incident links from each mass shooting (or other report or query) page (http://www.gunviolencearchive.org/reports/mass-shooting)
 
 def get_urls(url):
 	response = requests.get(url, timeout = 10)
@@ -17,6 +17,44 @@ def get_urls(url):
 	urlList = ['http://www.gunviolencearchive.org' + row.find('a').attrs['href'] for row in rows]
 
 	return urlList
+
+
+
+# get_all_urls function gets all incident links from a mass shooting page, as well as the incident links from all the following mass shooting pages. Works for "Reports" pages, as well as "Search Database" results. Call the function with url input for the first page of any of these results, and function will return longUrlList with all the incident links from the first page and all the subsequent pages. 
+
+#initiate empty list to fill with multiple links from multiple pages
+longUrlList = []
+
+def get_all_urls(url):
+	#get all "View Incident" links from one page, as done in get_urls function
+	response = requests.get(url, timeout = 10)
+	soup = BeautifulSoup(response.content, 'html.parser')
+	table = soup.find('table', class_="responsive sticky-enabled")
+	rows = table.select('tbody > tr')
+	
+	#add the "View Incident" links to a list
+	urlList = ['http://www.gunviolencearchive.org' + row.find('a').attrs['href'] for row in rows]
+	#add links from urlList to the bigger list of links
+	for link in urlList:
+		longUrlList.append(link)
+	
+	#find out if there is another "next" page of incidents
+	nextPageLink = soup.find_all('li', {'class':"pager-next"})
+
+	#if a "next" page exists, call function on the link to that "next" page
+	if nextPageLink != []:
+		addToUrl = nextPageLink[0].find('a').attrs['href']
+		newUrl = 'https://www.gunviolencearchive.org' + addToUrl
+		get_all_urls(newUrl)
+	#when there are no more pages of links, return the longUrlList, for use with scrape_urls function
+	else:
+		return longUrlList
+
+
+
+
+
+	
 
 # function to add list of dictionaries (data) to certain csv (category) with headers (fields)
 
@@ -224,6 +262,9 @@ if __name__=="__main__":
 	#for URL in links:
 	#	scrape_urls(URL)
 
+	#gets all urls from results of the query, can then loop over list to scrape data as demonstrated in example above
+	#get_all_urls('https://www.gunviolencearchive.org/query/a8aef44c-ca1e-43a5-a40c-ffe766853cde')
+	
 
 
 
