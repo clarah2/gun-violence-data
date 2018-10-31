@@ -65,13 +65,12 @@ def write_to_csv(category, data, fields):
 		df.to_csv(f, header=False, index=False, columns = fields)
 
 
-#function creates five csv files: Basics, Participants, IncidentCharacteristics, Notes, Guns to fill with data
+#function creates 4 csv files: Basics, Participants, IncidentCharacteristics, Guns to fill with data
 
 def create_csv():
-	basics = OrderedDict([('Incident', None), ('Date', None), ('Place Name', None), ('Address', None), ('City', None), ('State', None), ('Latitude', None), ('Longitude', None), ('Congressional District', None), ('State Senate District', None), ('State House District', None), ('Participant Count', None), ('Victim Count', None), ('Subject Count', None), ('Gun Count', None)])
+	basics = OrderedDict([('Incident', None), ('Date', None), ('Place Name', None), ('Address', None), ('City', None), ('State', None), ('Latitude', None), ('Longitude', None), ('Congressional District', None), ('State Senate District', None), ('State House District', None), ('Participant Count', None), ('Victim Count', None), ('Subject Count', None), ('Gun Count', None), ('Notes', None)])
 	participantCharacteristics = OrderedDict([('Incident', None), ('Type', None), ('Relationship', None), ('Name', None), ('Age', None), ('Age Group', None), ('Gender', None), ('Status', None)])
 	iC = OrderedDict([('Incident', None), ('Incident Characteristic', None)])
-	notes = OrderedDict([('Incident', None), ('Notes', None)])
 	gunCharacteristics = OrderedDict([('Incident', None), ('Gun Type', None), ('Stolen', None)])
 	
 	with open('Basics.csv', 'w') as csvFile:
@@ -86,10 +85,6 @@ def create_csv():
 		iCHeaders = csv.DictWriter(csvFile, fieldnames = iC)
 		iCHeaders.writeheader()
 
-	with open('Notes.csv', 'w') as csvFile:
-		notesHeaders = csv.DictWriter(csvFile, fieldnames = notes)
-		notesHeaders.writeheader()
-
 	with open('Guns.csv', 'w') as csvFile:
 		gunHeaders = csv.DictWriter(csvFile, fieldnames = gunCharacteristics)
 		gunHeaders.writeheader()
@@ -98,8 +93,7 @@ def create_csv():
 
 	
 # function to get the information from each incident page (ex. http://www.gunviolencearchive.org/incident/604762) 
-# creates 3 csv files: basics, participants, and guns, preceded by unique ID number. One of each for each incident
-# also prints the notes and incident characteristics
+# puts all data into one of 4 csv files created by create_csv()
 
 def scrape_urls(url):
 	
@@ -116,7 +110,7 @@ def scrape_urls(url):
 	soup = BeautifulSoup(response.content, 'html.parser')
 	headers = soup.find_all('h2')
 
-	basicInfo = [{'Incident' : incidentNumber, 'Date': None, 'Place Name': None, 'Address': None, 'City': None, 'State': None, 'Latitude': None, 'Longitude': None, 'Congressional District': None, 'State Senate District': None, 'State House District': None, 'Participant Count': None, 'Victim Count': None, 'Subject Count': None, 'Gun Count': None}]
+	basicInfo = [{'Incident' : incidentNumber, 'Date': None, 'Place Name': None, 'Address': None, 'City': None, 'State': None, 'Latitude': None, 'Longitude': None, 'Congressional District': None, 'State Senate District': None, 'State House District': None, 'Participant Count': None, 'Victim Count': None, 'Subject Count': None, 'Gun Count': None, 'Notes': None}]
 	basicsHeaders = [x for x in basicInfo[0].keys()] #create list of headers
 
 	#going through all headers in link to find information
@@ -205,10 +199,7 @@ def scrape_urls(url):
 		elif "Notes" in h.text:
 
 			txt = h.findNextSibling('p').text
-			notes = [{'Incident': incidentNumber, 'Notes': txt}]
-
-			notesHeaders = [x for x in notes[0].keys()] #create list of headers
-			write_to_csv('Notes', notes, notesHeaders) #add notes to Notes.csv
+			basicInfo[0]['Notes'] = txt
 
 		elif "Guns Involved" in h.text:
 
@@ -251,7 +242,7 @@ def scrape_urls(url):
 if __name__=="__main__":
 	
 	# to create csvs to start collecting data
-	#create_csv()
+	create_csv()
 
 	# for just one url, use scrape_urls function
 	url = "http://www.gunviolencearchive.org/incident/604762"
