@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 
 
-# function to get list of incident links from each mass shooting (or other report or query) page (http://www.gunviolencearchive.org/reports/mass-shooting)
+'''function to get list of incident links from each mass shooting (or other report or query) page (http://www.gunviolencearchive.org/reports/mass-shooting)'''
 
 def get_urls(url):
 	response = requests.get(url, timeout = 10)
@@ -20,7 +20,7 @@ def get_urls(url):
 
 
 
-# get_all_urls function gets all incident links from a mass shooting page, as well as the incident links from all the following mass shooting pages. Works for "Reports" pages, as well as "Search Database" results. Call the function with url input for the first page of any of these results, and function will return longUrlList with all the incident links from the first page and all the subsequent pages. 
+'''get_all_urls function gets all incident links from a mass shooting page, as well as the incident links from all the following mass shooting pages. Works for "Reports" pages, as well as "Search Database" results. Call the function with url input for the first page of any of these results, and function will return longUrlList with all the incident links from the first page and all the subsequent pages. '''
 
 #initiate empty list to fill with multiple links from multiple pages
 longUrlList = []
@@ -56,16 +56,15 @@ def get_all_urls(url):
 
 	
 
-# function to add list of dictionaries (data) to certain csv (category) with headers (fields)
+'''function to add list of dictionaries (data) to certain csv (category) with headers (fields)'''
 
 def write_to_csv(category, data, fields):
 	df = pd.DataFrame.from_dict(data)
 	with open(category + '.csv', 'a') as f:
-		f.write('\n')
 		df.to_csv(f, header=False, index=False, columns = fields)
 
 
-#function creates 4 csv files: Basics, Participants, IncidentCharacteristics, Guns to fill with data
+'''function creates 4 csv files: Basics, Participants, IncidentCharacteristics, Guns to fill with data'''
 
 def create_csv():
 	basics = OrderedDict([('Incident', None), ('Date', None), ('Place Name', None), ('Address', None), ('City', None), ('State', None), ('Latitude', None), ('Longitude', None), ('Congressional District', None), ('State Senate District', None), ('State House District', None), ('Participant Count', None), ('Victim Count', None), ('Subject Count', None), ('Gun Count', None), ('Notes', None)])
@@ -76,24 +75,27 @@ def create_csv():
 	with open('Basics.csv', 'w') as csvFile:
 		basicsHeaders = csv.DictWriter(csvFile, fieldnames = basics)
 		basicsHeaders.writeheader()
+		csvFile.write('\n')
 
 	with open('Participants.csv', 'w') as csvFile:
 		participantHeaders = csv.DictWriter(csvFile, fieldnames = participantCharacteristics)
 		participantHeaders.writeheader()
+		csvFile.write('\n')
 
 	with open('IncidentCharacteristics.csv', 'w') as csvFile:
 		iCHeaders = csv.DictWriter(csvFile, fieldnames = iC)
 		iCHeaders.writeheader()
+		csvFile.write('\n')
 
 	with open('Guns.csv', 'w') as csvFile:
 		gunHeaders = csv.DictWriter(csvFile, fieldnames = gunCharacteristics)
 		gunHeaders.writeheader()
+		csvFile.write('\n')
 
 
 
 	
-# function to get the information from each incident page (ex. http://www.gunviolencearchive.org/incident/604762) 
-# puts all data into one of 4 csv files created by create_csv()
+'''function to get the information from each incident page (ex. http://www.gunviolencearchive.org/incident/604762), puts all data into one of 4 csv files created by create_csv()'''
 
 def scrape_urls(url):
 	
@@ -111,7 +113,7 @@ def scrape_urls(url):
 	headers = soup.find_all('h2')
 
 	basicInfo = [{'Incident' : incidentNumber, 'Date': None, 'Place Name': None, 'Address': None, 'City': None, 'State': None, 'Latitude': None, 'Longitude': None, 'Congressional District': None, 'State Senate District': None, 'State House District': None, 'Participant Count': None, 'Victim Count': None, 'Subject Count': None, 'Gun Count': None, 'Notes': None}]
-	basicsHeaders = [x for x in basicInfo[0].keys()] #create list of headers
+	basicsHeaders = [x for x in basicInfo[0]] #create list of headers
 
 	#going through all headers in link to find information
 	for h in headers:
@@ -184,7 +186,7 @@ def scrape_urls(url):
 			basicInfo[0]['Victim Count'] = victimCount
 			basicInfo[0]['Subject Count'] = subjectCount
 
-			participantsHeaders = [x for x in participantList[0].keys()] #create list of headers
+			participantsHeaders = [x for x in participantList[0]] #create list of headers
 			write_to_csv('Participants', participantList, participantsHeaders) #add all dictionaries in participantList to Participants.csv
 			
 		elif "Incident Characteristics" in h.text:
@@ -193,7 +195,7 @@ def scrape_urls(url):
 			li = ICinfo.findChildren('li')
 			incidentCharacteristics = [{'Incident': incidentNumber, 'Incident Characteristic': child.text} for child in li]
 			
-			iCHeaders = [x for x in incidentCharacteristics[0].keys()] #create list of headers
+			iCHeaders = [x for x in incidentCharacteristics[0]] #create list of headers
 			write_to_csv('IncidentCharacteristics', incidentCharacteristics, iCHeaders) #add incident characteristics to IncidentCharacteristics.csv
 
 		elif "Notes" in h.text:
@@ -222,7 +224,7 @@ def scrape_urls(url):
 
 			basicInfo[0]['Gun Count'] = gunCount
 			
-			gunsHeaders = [x for x in gunList[0].keys()] #create list of headers
+			gunsHeaders = [x for x in gunList[0]] #create list of headers
 			write_to_csv('Guns', gunList, gunsHeaders) #add guns to Guns.csv
 
 		elif "District" in h.text:
@@ -245,7 +247,7 @@ if __name__=="__main__":
 	create_csv()
 
 	# for just one url, use scrape_urls function
-	url = "http://www.gunviolencearchive.org/incident/604762"
+	url = "http://www.gunviolencearchive.org/incident/604762"  #using incident 604762 as an example
 	scrape_urls(url)
 
 	# for many urls, use get_urls to get a list of urls first
